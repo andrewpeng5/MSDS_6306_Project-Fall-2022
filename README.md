@@ -12,3 +12,6 @@ Unit 1 Overall R Markdown.RMD:
 ### CSV files: 
 Beers.csv
 Breweries.cvs
+
+### Presentation
+Beer Case Study Presentation.pptx
