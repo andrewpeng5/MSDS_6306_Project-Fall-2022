@@ -1,0 +1,255 @@
+#Beer Case Study#
+
+library(dplyr)
+library(tidyverse)
+library(caret)
+library(stringr)
+library(sjmisc)
+library(RCurl)
+library(class)
+library(plotly)
+library(ggthemes)
+library(usmap)
+library(sf)
+library(maps)
+
+
+
+beers = data.frame(read.csv("C:/Users/bejes/OneDrive/School/MSDS 6306 Doing Data Science/Github Resources/MSDS_6306_Doing-Data-Science-Master/Unit 8 and 9 Case Study 1/Beers.csv") )
+
+brews = data.frame(read.csv("C:/Users/bejes/OneDrive/School/MSDS 6306 Doing Data Science/Github Resources/MSDS_6306_Doing-Data-Science-Master/Unit 8 and 9 Case Study 1/Breweries.csv") )
+
+
+
+# 1. How many breweries are present in each state? 
+```{r}
+
+brews %>% group_by(State) %>% summarise(cnt = n()) %>% ggplot(aes(x=State,y=cnt)) + geom_bar(stat = "identity") + theme(axis.text.x = element_text(size = rel(0.8), angle = 90)) +ggtitle("Number of breweries in each State")
+
+
+brews %>% group_by(State) %>% summarise(cnt = n())
+
+
+```
+
+# 2. Merge beer data with the breweries data. Print the first 6 observations and the last six observations to check the merged file.  
+#(RMD only, this does not need to be included in the presentation or the deck.) 
+```{r}
+
+merged_data <- merge(beers, brews, by.x ="Brewery_id", by.y ="Brew_ID")
+merged_data
+
+head(merged_data,n=6)
+tail(merged_data,n=6)
+
+#get rid of spaces in States
+merged_data$State = gsub(" ", "", merged_data$State)
+
+#get rid of years 
+merged_data$Name.x = str_remove(merged_data$Name.x, "([:space:]|)\\(\\d\\d\\d\\d\\)")
+
+#only keep distinct rows
+distinct_data = distinct(merged_data, Name.x,Ounces,.keep_all= TRUE)
+
+distinct_data$Region = ""
+
+#Add Region
+for(i in 1:nrow(distinct_data)){
+  
+  if((str_contains(distinct_data[i,]$State, c("VT","CT","DE","PA","ME","MA","MD","NH","NJ","NY","RI"),logic = "OR"))){
+  distinct_data[i,]$Region = "Northeast"
+  }
+  
+  if((str_contains(distinct_data[i,]$State, c("WV","VA","TX","TN","SC","OK","NC","MS","MD","LA","KS","GA","FL","DE","AR","AL","KY","DC"),logic = "OR"))){
+  distinct_data[i,]$Region = "South"
+  }
+  
+  if((str_contains(distinct_data[i,]$State, c("MN","ND","SD","IA","NE","WI","MO","IN","IL","MI","OH","KS"),logic = "OR"))){
+  distinct_data[i,]$Region = "Midwest"
+  }
+  
+  if((str_contains(distinct_data[i,]$State, c("HI","AK","ID","MT","CO","WY","UT","NV","AZ","CA","WA","OR","NM"),logic = "OR"))){
+  distinct_data[i,]$Region = "West"
+  }
+}
+
+distinct_data
+
+```
+
+# 3. Address the missing values in each column. 
+```{r}
+#I am not pre--filtering out rows that have missing values in the columns, that would take out good data for the columns that do have values. I filter out NA's before plotting and calculating median's. As can be seen below.
+
+#Number of missing ABV by State
+missing_abvs = distinct_data %>% filter(is.na(ABV)) %>% group_by(State,Region) %>% summarize(missingABVs = n() )
+
+
+missing_abvs_plot = missing_abvs %>% 
+  ggplot(mapping = aes(x=State,y=missingABVs,fill = Region)) + geom_bar(stat="identity")+
+facet_wrap(~Region) + theme(axis.text.x = element_text(size = rel(0.8), angle = 90)) + ggtitle("Number of missing ABV values per State")
+
+ggplotly(missing_abvs_plot)
+
+
+
+#Number of missing IBU by State
+missing_ibus = distinct_data %>% filter(is.na(IBU)) %>% group_by(State,Region) %>% summarize(missingIBUs = n() )
+
+missing_ibus_plot = missing_ibus %>% 
+  ggplot(mapping = aes(x=State,y=missingIBUs,fill = Region)) + geom_bar(stat="identity")+
+facet_wrap(~Region) + theme(axis.text.x = element_text(size = rel(0.8), angle = 90)) + ggtitle("Number of missing IBU values per State")
+
+ggplotly(missing_ibus_plot)
+
+
+
+#Percent ABV/IBU missing of all data for each state
+
+total_rows_per_state = distinct_data %>% group_by(State,Region) %>% summarize(totalNumRows = n() )
+
+table1 = merge(x = total_rows_per_state,y = missing_abvs,by.x = "State",by.y = "State" )
+table2 = merge(x = total_rows_per_state,y = missing_ibus,by.x = "State",by.y = "State" )
+
+percent_ibus_missing = table2 %>% select(State,totalNumRows,missingIBUs) %>% group_by(State) %>% summarize(ibuPercentMissing = (missingIBUs/totalNumRows)*100 )
+
+percent_abvs_missing = table1 %>% select(State,totalNumRows,missingABVs) %>% group_by(State) %>% summarize(abvPercentMissing = (missingABVs/totalNumRows)*100 )
+
+percent_ibus_missing_plot = percent_ibus_missing %>% 
+  ggplot(mapping = aes(x=State,y=ibuPercentMissing,fill=State)) + geom_bar(stat="identity") + theme(axis.text.x = element_text(size = rel(0.8), angle = 90)) + ggtitle("Percent rows missing IBU")
+
+percent_abvs_missing_plot = percent_abvs_missing %>% 
+  ggplot(mapping = aes(x=State,y=abvPercentMissing,fill=State)) + geom_bar(stat="identity") + theme(axis.text.x = element_text(size = rel(0.8), angle = 90)) + ggtitle("Percent rows missing ABV")
+
+ggplotly(percent_ibus_missing_plot)
+ggplotly(percent_abvs_missing_plot)
+
+
+
+
+```
+
+
+# 4. Compute the median alcohol content and international bitterness unit for each state. Plot a bar chart to compare. 
+```{r}
+
+median_ibus = distinct_data %>% filter(!is.na(IBU)) %>% group_by(State,Region) %>% summarize(medianIBU = median(IBU) )
+
+median_abvs = distinct_data %>% filter(!is.na(ABV)) %>% group_by(State,Region) %>% summarize(medianABV = median(ABV) )
+
+
+median_abvs_plot = median_abvs %>% 
+  ggplot(mapping = aes(x=State,y=medianABV,fill = Region)) + geom_bar(stat="identity")+
+facet_wrap(~Region) + theme(axis.text.x = element_text(size = rel(0.8), angle = 90)) + ggtitle("Median ABV per State")
+
+
+
+ggplotly(median_abvs_plot)
+ggplotly(median_ibus_plot)
+```
+
+
+# 5. Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer? 
+```{r}
+
+maxABV = max(distinct_data$ABV,na.rm = TRUE)
+maxIBU = max(distinct_data$IBU,na.rm = TRUE)
+
+
+merged_data %>% filter(ABV == maxABV)
+merged_data %>% filter(IBU == maxIBU)
+
+```
+
+# 6. Comment on the summary statistics and distribution of the ABV variable
+```{r}
+
+mean_abvs = distinct_data %>% filter(!is.na(ABV)) %>% group_by(State,Region) %>% summarize(meanABV = mean(ABV) )
+
+
+distinct_data %>% filter(!is.na(ABV)) %>% ggplot(mapping = aes(x=ABV)) + geom_bar(stat="count") + ggtitle("Distribution of Mean ABV")
+
+
+mean_abvs %>%ggplot(mapping = aes(x=reorder(State,-meanABV),y=meanABV,fill=Region)) + geom_bar(stat="identity") + theme(axis.text.x = element_text(size = rel(0.8), angle = 90)) +ggtitle("Mean ABV by State") +xlab("State") +geom_hline(yintercept = mean(mean_abvs$meanABV),color = "red")
+
+
+```
+# 7. Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.  Make your best judgment of a relationship and EXPLAIN your answer. 
+```{r}
+
+distinct_data %>% filter(!is.na(ABV) & !is.na(IBU)) %>%
+  ggplot(aes(x = ABV, y = IBU)) + geom_point() +ggtitle("IBU vs ABV")
+
+```
+
+
+# 8. KNN
+```{r}
+distinct_data$IPA = ""
+distinct_data$Ale = ""
+distinct_data$Type = ""
+
+#check for ipa and ales
+for(i in 1:nrow(distinct_data)){
+  if(str_contains(distinct_data[i,]$Name.x,c("India Pale Ale","IPA","I.P.A.","Pale Ale"),logic = "OR")){
+    distinct_data[i,]$IPA = "TRUE"
+  }else{
+      distinct_data[i,]$IPA = "FALSE"
+    }
+  if(str_contains(distinct_data[i,]$Name.x,c("Ale"))){
+    distinct_data[i,]$Ale = "TRUE"
+    }else{
+      distinct_data[i,]$Ale = "FALSE"
+    }
+  
+}
+
+#assign type
+for(i in 1:nrow(distinct_data)){
+  if(distinct_data[i,]$IPA == "TRUE"){
+    distinct_data[i,]$Type = "IPA"
+  }
+  if(distinct_data[i,]$IPA == "FALSE" & distinct_data[i,]$Ale == "TRUE"){
+    distinct_data[i,]$Type = "Ale"
+  }
+  if(distinct_data[i,]$IPA == "FALSE" & distinct_data[i,]$Ale == "FALSE"){
+    distinct_data[i,]$Type = "Non-Ale"
+  }
+}
+
+  
+ipa_ale_data = distinct_data %>% filter(!is.na(ABV) & !is.na(IBU) & (IPA == "TRUE" | Ale == TRUE) )
+
+splitPerc = .7
+
+
+trainIndices = sample(1:dim(ipa_ale_data)[1],round(splitPerc * dim(ipa_ale_data)[1]))
+train = ipa_ale_data[trainIndices,]
+test = ipa_ale_data[-trainIndices,]
+
+
+classifications = knn(train[,c(4,5)],test[,c(4,5)],train$Type, prob = TRUE, k = 5)
+table(classifications,test$Type)
+CM = confusionMatrix(table(classifications,test$Type))
+CM
+
+
+
+```
+
+```{r}
+#Summary
+#
+# After looking into the data, we found various findings that are worth noting. When looking at ABV and IBU, there is strong visual
+# evidence that they are positively linearly correlated, so as ABV gets higher, IBU gets higher as well. When splitting the beers into
+# regions, it seems that the south produces stronger beer on average. We found that there were 27 states that were above the Mean #State ABV Average. 11 of those were from the South. Maybe this is due to different tastes of the various regions of the US. Lastly, a noteworthy finding is that the beer with the max abv was from Colorado, and the beer with the max IBU was from Oregon. Based on the finding, we could suggest to adjust the regional production and sales of more bitter beer in Southern states such as Oregon which could drive the revenue up. 
+#
+```
+
+
+
+
+
+
+
+
