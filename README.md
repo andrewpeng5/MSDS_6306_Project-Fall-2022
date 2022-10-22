@@ -1,12 +1,7 @@
 # MSDS_6306_Project-Fall-2022
-MSDS_6306_Doing-Data-Science Project
+MSDS_6306_Doing-Data-Science Project - Beer Case Study
 
-#Thank you for your attention
-Welcome to our project - Beer Case Study 
-
-##Asynch Material
-
-### The code used in the Asynch material  
+### The code used in the study
 DDS Case Study Project Code.RMD:   
 
 ### CSV files: 
