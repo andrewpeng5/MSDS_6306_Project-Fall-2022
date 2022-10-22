@@ -7,7 +7,7 @@ Welcome to our project - Beer Case Study
 ##Asynch Material
 
 ### The code used in the Asynch material  
-Beer Case Study Project R Markdown.RMD:   
+DDS Case Study Project Code.RMD:   
 
 ### CSV files: 
 Beers.csv
