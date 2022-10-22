@@ -12,3 +12,4 @@ Beers.csv
 Beer Case Study Presentation.pptx
 
 ### VIDEO
+Beer Case Study Video Presentation.mp4
