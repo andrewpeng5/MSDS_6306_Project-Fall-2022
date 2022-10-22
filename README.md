@@ -5,8 +5,10 @@ MSDS_6306_Doing-Data-Science Project - Beer Case Study
 DDS Case Study Project Code.RMD:   
 
 ### CSV files: 
+Breweries.cvs /
 Beers.csv
-Breweries.cvs
+
 
 ### Presentation
 Beer Case Study Presentation.pptx
+
